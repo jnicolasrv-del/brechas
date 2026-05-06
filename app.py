@@ -25,39 +25,25 @@ with st.sidebar:
 
 # 3. Lógica del gráfico REFORZADA (La que querías)
 df = pd.DataFrame(st.session_state.historico)
-fig, ax = plt.subplots(figsize=(12, 7))
+# --- Nueva Visualización Optimizada para Móvil ---
+st.divider() # Una línea sutil para separar
 
-# Líneas principales
-ax.plot(df['fecha'], df['bcv'], marker='o', label='BCV', color='#1f77b4', linewidth=3)
-ax.plot(df['fecha'], df['banco'], marker='s', label='BANCO', color='#ff7f0e', linewidth=3)
-ax.plot(df['fecha'], df['binance'], marker='^', label='BINANCE', color='#2ca02c', linewidth=3)
+# Creamos un DataFrame pequeño para la gráfica interactiva
+df_grafica = pd.DataFrame({
+    'Referencia': ['BCV (Oficial)', 'Paralelo'],
+    'Precio (Bs.)': [tasa_oficial, tasa_paralelo]
+})
 
-# Función para dibujar las brechas (Exactamente como el código original)
-def dibujar_brecha(i, alto, bajo, color, desp_x, alineacion):
-    porc = ((alto - bajo) / bajo) * 100
-    medio = (alto + bajo) / 2
-    ax.vlines(x=df['fecha'][i], ymin=bajo, ymax=alto, colors=color, linestyles='--', alpha=0.5)
-    ax.text(i + desp_x, medio, f'{porc:.1f}%', color=color, fontweight='bold', va='center', ha=alineacion, fontsize=9)
+# Gráfica nativa de Streamlit (Se ajusta sola al ancho del celular)
+st.bar_chart(df_grafica, x='Referencia', y='Precio (Bs.)', color="#007bff")
 
-for i in range(len(df)):
-    # Brechas
-    dibujar_brecha(i, df['binance'][i], df['bcv'][i], '#7f7f7f', -0.07, 'right')
-    dibujar_brecha(i, df['banco'][i], df['bcv'][i], '#9467bd', 0.07, 'left')
-    dibujar_brecha(i, df['binance'][i], df['banco'][i], '#d62728', 0.07, 'left')
+# Bloque de métricas (Esto se ve gigante y claro en el teléfono)
+st.subheader("Análisis de Brecha")
+m1, m2 = st.columns(2)
+m1.metric(label="Diferencia en Bs.", value=f"{brecha_bs:.2f}")
+m2.metric(label="Porcentaje", value=f"{brecha_porcentaje:.2f}%")
 
-    # Etiquetas de montos sobre los puntos
-    for col in ['bcv', 'banco', 'binance']:
-        ax.annotate(f'{df[col][i]:,.0f}', (df['fecha'][i], df[col][i]), 
-                     textcoords="offset points", xytext=(0,10), ha='center', 
-                     fontsize=9, fontweight='bold')
-
-ax.grid(True, axis='y', linestyle=':', alpha=0.6)
-ax.legend(loc='upper left')
-plt.tight_layout()
-
-# Mostrar en Streamlit
-st.pyplot(fig)
-
+st.divider()
 # Tabla al final
 st.subheader("Historial de registros")
 st.dataframe(df, use_container_width=True)
