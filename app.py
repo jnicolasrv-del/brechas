@@ -13,17 +13,14 @@ if 'historico' not in st.session_state:
         {"fecha": datetime.date(2026, 4, 30), "bcv": 487.00, "banco": 611.00, "binance": 645.00}
     ]
 
-# --- 2. SIDEBAR CON FORMATO DD/MM/AAAA ---
+# --- 2. SIDEBAR CON FORMATO DD/MM/YYYY ---
 with st.sidebar:
     st.header("📝 Nuevos Precios")
-    
-    # El parámetro format="DD/MM/YYYY" cambia cómo lo ves en pantalla
     f_seleccionada = st.date_input(
         "Selecciona la Fecha", 
         datetime.date.today(),
         format="DD/MM/YYYY" 
     )
-    
     v_bcv = st.number_input("Tasa BCV", value=490.00, format="%.2f")
     v_ban = st.number_input("Tasa Banco", value=615.00, format="%.2f")
     v_bin = st.number_input("Tasa Binance", value=650.00, format="%.2f")
@@ -37,17 +34,19 @@ with st.sidebar:
         })
         st.rerun()
 
-# --- 3. PROCESAMIENTO Y ORDENAMIENTO (CRUCIAL) ---
+# --- 3. PROCESAMIENTO SEGURO (PARA EVITAR EL ATTRIBUTE ERROR) ---
 df = pd.DataFrame(st.session_state.historico)
 
-# Convertimos a datetime por seguridad y ORDENAMOS
+# Convertimos la columna 'fecha' a datetime de forma robusta
 df['fecha'] = pd.to_datetime(df['fecha'])
-df = df.sort_values(by='fecha') # Esto garantiza que Marzo < Abril < Mayo
 
-# Creamos la etiqueta visual en formato DD-Mes
-df['fecha_label'] = df['fecha'].dt.strftime('%d-%b').lower()
+# ORDENAMOS cronológicamente (Esto arregla que Mayo aparezca al final)
+df = df.sort_values(by='fecha')
 
-# Obtenemos el último registro ya ordenado
+# Creamos la etiqueta para el gráfico (07-may) después de ordenar
+df['fecha_label'] = df['fecha'].dt.strftime('%d-%b').str.lower()
+
+# Tomamos el último registro según el tiempo
 ultimo = df.iloc[-1]
 
 # --- 4. MÉTRICAS DE BRECHAS ---
@@ -63,17 +62,14 @@ c1.metric("Binance / BCV", f"{b_bin_bcv:.1f}%", f"{(ultimo['binance']-ultimo['bc
 c2.metric("Banco / BCV", f"{b_ban_bcv:.1f}%", f"{(ultimo['banco']-ultimo['bcv']):.2f} Bs")
 c3.metric("Binance / Banco", f"{b_bin_ban:.1f}%", f"{(ultimo['binance']-ultimo['banco']):.2f} Bs")
 
-# --- 5. GRÁFICO ---
-# Al usar st.line_chart con un dataframe ya ordenado y con la fecha como índice, se respeta el orden
-df_grafico = df.set_index('fecha_label')[['bcv', 'banco', 'binance']]
-st.line_chart(df_grafico)
+# --- 5. GRÁFICO CORREGIDO ---
+# Al estar el DF ya ordenado, el gráfico seguirá el orden Marzo -> Abril -> Mayo
+st.line_chart(df.set_index('fecha_label')[['bcv', 'banco', 'binance']])
 
 # --- 6. TABLA DETALLADA ---
 with st.expander("Ver historial detallado"):
     df_h = df.copy()
-    # Formateamos la fecha de la tabla a DD/MM/YYYY
     df_h['fecha_tabla'] = df_h['fecha'].dt.strftime('%d/%m/%Y')
-    
     df_h['Brecha Bin/BCV %'] = ((df_h['binance'] - df_h['bcv']) / df_h['bcv']) * 100
     df_h['Brecha Ban/BCV %'] = ((df_h['banco'] - df_h['bcv']) / df_h['bcv']) * 100
     
