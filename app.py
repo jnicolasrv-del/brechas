@@ -6,7 +6,8 @@ st.set_page_config(page_title="Monitor de Brechas", layout="centered")
 
 st.title("📊 Monitor de Tasas y Brechas")
 
-# --- 1. HISTORIAL INICIAL ---
+# --- 1. HISTORIAL INICIAL UNIFICADO ---
+# Aquí estaba el error: ahora usamos datetime.date para que coincida con el calendario
 if 'historico' not in st.session_state:
     st.session_state.historico = [
         {"fecha": datetime.date(2026, 3, 27), "bcv": 468.51, "banco": 570.00, "binance": 630.00},
@@ -34,13 +35,14 @@ with st.sidebar:
         })
         st.rerun()
 
-# --- 3. PROCESAMIENTO SEGURO ---
+# --- 3. PROCESAMIENTO ---
 df = pd.DataFrame(st.session_state.historico)
-df['fecha'] = pd.to_datetime(df['fecha'])
-df = df.sort_values(by='fecha')
 
-# Corrección para el error de la línea 48:
-# Nos aseguramos de que sea datetime antes de aplicar .dt
+# Convertimos todo a datetime para asegurar que el ordenamiento sea perfecto
+df['fecha'] = pd.to_datetime(df['fecha'])
+df = df.sort_values('fecha')
+
+# Etiqueta para que el eje X se vea como "27-mar"
 df['fecha_label'] = df['fecha'].dt.strftime('%d-%b').str.lower()
 
 ultimo = df.iloc[-1]
@@ -59,24 +61,18 @@ c2.metric("Banco / BCV", f"{b_ban_bcv:.1f}%", f"{(ultimo['banco']-ultimo['bcv'])
 c3.metric("Binance / Banco", f"{b_bin_ban:.1f}%", f"{(ultimo['binance']-ultimo['banco']):.2f} Bs")
 
 # --- 5. GRÁFICO ---
+# Usamos el índice de tiempo real para que el orden sea cronológico obligatorio
 st.line_chart(df.set_index('fecha_label')[['bcv', 'banco', 'binance']])
 
-# --- 6. TABLA DETALLADA (CON COLUMNA FALTANTE) ---
+# --- 6. TABLA DETALLADA ---
 with st.expander("Ver historial detallado"):
     df_h = df.copy()
     df_h['fecha_tabla'] = df_h['fecha'].dt.strftime('%d/%m/%Y')
     
-    # Cálculo de las 3 brechas para el historial
     df_h['Brecha Bin/BCV %'] = ((df_h['binance'] - df_h['bcv']) / df_h['bcv']) * 100
     df_h['Brecha Ban/BCV %'] = ((df_h['banco'] - df_h['bcv']) / df_h['bcv']) * 100
-    df_h['Brecha Bin/Ban %'] = ((df_h['binance'] - df_h['banco']) / df_h['banco']) * 100 # <-- LA NUEVA
+    df_h['Brecha Bin/Ban %'] = ((df_h['binance'] - df_h['banco']) / df_h['banco']) * 100
     
-    # Seleccionamos las columnas para mostrar
-    columnas_mostrar = [
-        'fecha_tabla', 'bcv', 'banco', 'binance', 
-        'Brecha Bin/BCV %', 'Brecha Ban/BCV %', 'Brecha Bin/Ban %'
-    ]
-    
-    # Formateo numérico
+    columnas_mostrar = ['fecha_tabla', 'bcv', 'banco', 'binance', 'Brecha Bin/BCV %', 'Brecha Ban/BCV %', 'Brecha Bin/Ban %']
     columnas_num = ['bcv', 'banco', 'binance', 'Brecha Bin/BCV %', 'Brecha Ban/BCV %', 'Brecha Bin/Ban %']
     st.dataframe(df_h[columnas_mostrar].style.format(subset=columnas_num, formatter="{:.2f}"), use_container_width=True)
