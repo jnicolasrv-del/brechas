@@ -34,6 +34,17 @@ with st.sidebar:
         df_final = pd.concat([df, nueva_fila]).sort_values('fecha')
         df_final.to_csv('data.csv', index=False)
         st.rerun()
+   
+    st.divider() # Esto dibuja una línea separadora estética
+    if st.button("🗑️ Borrar Último Registro"):
+        if not df.empty:
+            # Creamos un nuevo dataframe sin la última fila
+            df_limpio = df.iloc[:-1] 
+            # Lo guardamos en el mismo archivo para sobreescribirlo
+            df_limpio.to_csv('data.csv', index=False)
+            st.warning("Se eliminó el último registro.")
+            st.rerun()
+
 
 # --- 3. VISUALIZACIÓN ---
 if not df.empty:
