@@ -10,7 +10,6 @@ st.title("📊 Monitor de Tasas y Brechas")
 def cargar_datos():
     if os.path.exists('data.csv'):
         df = pd.read_csv('data.csv')
-        # CRUCIAL: Convertir a fecha real y ORDENAR por ese valor numérico
         df['fecha'] = pd.to_datetime(df['fecha'])
         return df.sort_values('fecha')
     return pd.DataFrame(columns=['fecha', 'bcv', 'banco', 'binance'])
@@ -38,7 +37,7 @@ with st.sidebar:
 
 # --- 3. VISUALIZACIÓN ---
 if not df.empty:
-    # Creamos la etiqueta SOLO para mostrarla, no para ordenar
+    # Creamos la etiqueta formateada
     df['fecha_label'] = df['fecha'].dt.strftime('%d-%b').str.lower()
     ultimo = df.iloc[-1]
 
@@ -54,25 +53,26 @@ if not df.empty:
     c2.metric("Banco / BCV", f"{b_ban_bcv:.1f}%")
     c3.metric("Binance / Banco", f"{b_bin_ban:.1f}%")
 
-    # --- EL CAMBIO DEFINITIVO PARA EL GRÁFICO ---
-    # Usamos la FECHA REAL como índice. Streamlit detecta que es tiempo y 
-    # coloca marzo, abril y mayo en ese orden exacto.
+    # --- EL TRUCO PARA EL EJE X SIN HUECOS ---
+    # 1. Copiamos el DF ordenado
     df_grafico = df.copy()
-    df_grafico = df_grafico.set_index('fecha')
-    st.line_chart(df_grafico[['bcv', 'banco', 'binance']])
+    # 2. Convertimos la etiqueta en un "Categorical" respetando el orden cronológico actual
+    # Esto le dice a Streamlit: "No rellenes fechas, usa solo estas etiquetas como nombres"
+    df_grafico['fecha_label'] = pd.Categorical(df_grafico['fecha_label'], categories=df_grafico['fecha_label'].unique(), ordered=True)
+    
+    st.line_chart(df_grafico.set_index('fecha_label')[['bcv', 'banco', 'binance']])
 
-    # --- TABLA DETALLADA (CON PORCENTAJES) ---
+    # --- TABLA DETALLADA ---
     with st.expander("Ver historial detallado"):
         df_h = df.copy()
         df_h['Brecha Bin/BCV %'] = ((df_h['binance'] - df_h['bcv']) / df_h['bcv']) * 100
         df_h['Brecha Ban/BCV %'] = ((df_h['banco'] - df_h['bcv']) / df_h['bcv']) * 100
         df_h['Brecha Bin/Ban %'] = ((df_h['binance'] - df_h['banco']) / df_h['banco']) * 100
         
-        df_h['fecha'] = df_h['fecha'].dt.strftime('%d/%m/%Y')
+        df_h['fecha_formateada'] = df_h['fecha'].dt.strftime('%d/%m/%Y')
         
-        columnas = ['fecha', 'bcv', 'banco', 'binance', 'Brecha Bin/BCV %', 'Brecha Ban/BCV %', 'Brecha Bin/Ban %']
-        formatos = {c: '{:.2f}' for c in columnas if c != 'fecha'}
-        # Añadir el símbolo % a los formatos de las brechas
+        columnas = ['fecha_formateada', 'bcv', 'banco', 'binance', 'Brecha Bin/BCV %', 'Brecha Ban/BCV %', 'Brecha Bin/Ban %']
+        formatos = {c: '{:.2f}' for c in columnas if c != 'fecha_formateada'}
         for c in ['Brecha Bin/BCV %', 'Brecha Ban/BCV %', 'Brecha Bin/Ban %']:
             formatos[c] = '{:.2f}%'
 
